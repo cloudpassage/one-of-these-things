@@ -2,7 +2,7 @@
 
 Version: *1.0*
 <br />
-Author: *William Stearns - @william-stearns - wstearns@pobox.net*
+Author: *William Stearns - @william-stearns - wstearns@pobox.com*
 
 This tool provides one report per Halo group showing where the machines are the same, and where they differ. ("One of these things is not like the other")
 
