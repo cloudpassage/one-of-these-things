@@ -1,0 +1,63 @@
+<html><head><title>One of these things...</title></head><body>
+<script type="text/javascript"> function toggle(obj) { var obj=document.getElementById(obj); if (obj.style.display == "block") obj.style.display = "none"; else obj.style.display = "block"; } </script>
+<h2>aabb1134-webgroup: 2 servers</h2>
+<p>Server list: serv1
+ serv2
+</p>
+<h3>Servers disagree, severity bad and critical</h3>
+<table border="1">
+<tr><th>Server aspect:expected value</th><th colspan=3>Observed:server count</th></tr>
+<tr><td>Pkg-acpid.x86_64</td><td>1.0.1:<a href="javascript: void(0);" onClick="toggle('d5')">1</a><div id="d5" style="display:none;"> ( serv1 )</div></td></tr>
+<tr><td>Pkg-acpid.x86_64(CVE-2009-0798)</td><td>vulnerable:<a href="javascript: void(0);" onClick="toggle('d6')">1</a><div id="d6" style="display:none;"> ( serv1 )</div></td></tr>
+<tr><td>Pkg-acpid.x86_64(CVE-2009-4033)</td><td>vulnerable:<a href="javascript: void(0);" onClick="toggle('d7')">1</a><div id="d7" style="display:none;"> ( serv1 )</div></td></tr>
+<tr><td>Pkg-acpid.x86_64(CVE-2009-4235)</td><td>vulnerable:<a href="javascript: void(0);" onClick="toggle('d8')">1</a><div id="d8" style="display:none;"> ( serv1 )</div></td></tr>
+<tr><td>Pkg-cpio.x86_64</td><td>2.02:<a href="javascript: void(0);" onClick="toggle('d23')">1</a><div id="d23" style="display:none;"> ( serv2 )</div></td><td>2.6:<a href="javascript: void(0);" onClick="toggle('d24')">1</a><div id="d24" style="display:none;"> ( serv1 )</div></td></tr>
+<tr><td>Pkg-cpio.x86_64(CVE-2005-1033)</td><td>vulnerable:<a href="javascript: void(0);" onClick="toggle('d25')">1</a><div id="d25" style="display:none;"> ( serv2 )</div></td></tr>
+<tr><td>Pkg-cpio.x86_64(CVE-2005-1131)</td><td>vulnerable:<a href="javascript: void(0);" onClick="toggle('d26')">1</a><div id="d26" style="display:none;"> ( serv2 )</div></td></tr>
+</table>
+<h3>Servers disagree, severity bad</h3>
+<table border="1">
+<tr><th>Server aspect:expected value</th><th colspan=3>Observed:server count</th></tr>
+<tr><td>Pkg-nano.x86_64</td><td>2.0.3:<a href="javascript: void(0);" onClick="toggle('d260')">1</a><div id="d260" style="display:none;"> ( serv2 )</div></td><td>1.3.12:<a href="javascript: void(0);" onClick="toggle('d261')">1</a><div id="d261" style="display:none;"> ( serv1 )</div></td></tr>
+<tr><td>Pkg-newt.x86_64</td><td>0.44.1:<a href="javascript: void(0);" onClick="toggle('d262')">1</a><div id="d262" style="display:none;"> ( serv1 )</div></td></tr>
+<tr><td>Pkg-newt.x86_64(CVE-2009-2905)</td><td>vulnerable:<a href="javascript: void(0);" onClick="toggle('d263')">1</a><div id="d263" style="display:none;"> ( serv1 )</div></td></tr>
+</table>
+<h3>Servers disagree, indeterminate</h3>
+<table border="1">
+<tr><th>Server aspect:expected value</th><th colspan=3>Observed:server count</th></tr>
+<tr><td>Cfg rule-Apache chroot</td><td>indeterminate:<a href="javascript: void(0);" onClick="toggle('d384')">1</a><div id="d384" style="display:none;"> ( serv1 )</div></td></tr>
+<tr><td>Cfg rule-Apache chroot (check-/etc/httpd.conf has SecChrootDir /apache)</td><td>indeterminate:<a href="javascript: void(0);" onClick="toggle('d385')">1</a><div id="d385" style="display:none;"> ( serv1 )</div></td></tr>
+</table>
+<h3>Servers disagree, severity good</h3>
+<table border="1">
+<tr><th>Server aspect:expected value</th><th colspan=3>Observed:server count</th></tr>
+<tr><td>Acct-asmith</td><td>exists:<a href="javascript: void(0);" onClick="toggle('d1')">1</a><div id="d1" style="display:none;"> ( serv1 )</div></td></tr>
+<tr><td>Acct-djohnson</td><td>exists:<a href="javascript: void(0);" onClick="toggle('d2')">1</a><div id="d2" style="display:none;"> ( serv1 )</div></td></tr>
+<tr><td>Acct-tjames</td><td>exists:<a href="javascript: void(0);" onClick="toggle('d3')">1</a><div id="d3" style="display:none;"> ( serv2 )</div></td></tr>
+</table>
+<h3>Servers agree, severity bad and critical</h3>
+<table border="1">
+<tr><th>Server aspect:expected value</th><th colspan=3>Observed:server count</th></tr>
+<tr><td>Pkg-nano.x86_64(CVE-20010-2413)</td><td>vulnerable:2 = all</td></tr>
+<tr><td>Pkg-nano.x86_64(CVE-2011-0078)</td><td>vulnerable:2 = all</td></tr>
+</table>
+<h3>Servers agree, severity bad</h3>
+<table border="1">
+<tr><th>Server aspect:expected value</th><th colspan=3>Observed:server count</th></tr>
+<tr><td>Cfg rule-/etc/hosts security </td><td>bad:2 = all</td></tr>
+<tr><td>Cfg rule-/etc/hosts security (check-/etc/hosts owned by root)</td><td>djohnson:2 = all</td></tr>
+<tr><td>Cfg rule-Missing warning banner</td><td>bad:2 = all</td></tr>
+<tr><td>Cfg rule-Missing warning banner (check-/etc/issue contains Unauthorized use prohibited)</td><td>false:2 = all</td></tr>
+<tr><td>Pkg-xinetd.x86_64</td><td>2.3.14:2 = all</td></tr>
+<tr><td>Pkg-xinetd.x86_64(CVE-2012-0862)</td><td>vulnerable:2 = all</td></tr>
+</table>
+<h3>Servers agree, severity good</h3>
+<table border="1">
+<tr><th>Server aspect:expected value</th><th colspan=3>Observed:server count</th></tr>
+<tr><td>Acct-ewood</td><td>exists:2 = all</td></tr>
+<tr><td>Acct-vcarlisle</td><td>exists:2 = all</td></tr>
+<tr><td>IP-Connecting IP parent domain</td><td>cloudsrus.com:2 = all</td></tr>
+<tr><td>state</td><td>active:2 = all</td></tr>
+</table>
+<p>Each table row contains an expected value in column 1.  All other columns hold an observed value with a number of servers on which it was seen.  Click on the number to see the server names, click twice to hide again.</p>
+</body></html>
