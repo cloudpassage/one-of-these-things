@@ -35,7 +35,7 @@
 # you may need to install the oauth2, rest-client, and json gems with:
 # sudo gem install oauth2 rest-client json
 
-#Version 3.5
+#Version 3.6
 
 #======== User-modifiable values
 api_key_file = '/etc/halo-api-keys'
@@ -93,6 +93,23 @@ def load_accounts(aspects,aspect_scores,accounts_json,server_id,server_os)
 end
 
 
+#Extract daemon_version, platform, platform_version, os_version,
+#kernel_name, kernel_machine.
+#Later: firewall_policy/status
+def load_server_details(aspects,aspect_scores,server_details_json,server_id)
+  $stderr.puts "loading server_details" if $debug
+
+  #Add 'connecting_ip_address' later.
+  ['daemon_version', 'platform', 'platform_version', 'os_version', 'kernel_name', 'kernel_machine'].each do |one_aspect|
+    os_attr_name = "OS-#{one_aspect}"
+    aspects[os_attr_name] = { } unless aspects.has_key?(os_attr_name)
+    aspects[os_attr_name][server_id] = server_details_json['server'][one_aspect]
+    aspect_scores[os_attr_name] = { } unless aspect_scores.has_key?(os_attr_name)
+    aspect_scores[os_attr_name][server_id] = 0
+  end
+end
+
+
 #Extract the parent domain of the connecting_ip_address from an
 #individual server json block from /groups/{groupid}/servers .
 def load_servers(aspects,aspect_scores,one_server,server_id,parent_domain_cache)
@@ -105,6 +122,42 @@ def load_servers(aspects,aspect_scores,one_server,server_id,parent_domain_cache)
   aspects[aspect_name][server_id] = get_parent_domain(one_server['connecting_ip_address'],parent_domain_cache)
   aspect_scores[aspect_name] = { } unless aspect_scores.has_key?(aspect_name)
   aspect_scores[aspect_name][server_id] = 0
+end
+
+
+#Extract svm package names from /servers/{oneid}/svm
+def load_svm(aspects,aspect_scores,svm_json,server_id)
+  $stderr.puts "loading svm" if $debug
+
+  #Load up package names and versions
+  if svm_json['scan'] != nil
+    svm_json['scan']['findings'].each do |one_package|
+      package_name = "Pkg-#{one_package['package_name']}"
+      if one_package['status'] == 'good'
+        score = 0
+      elsif one_package['critical']
+        score = 3
+      else
+        score = 2
+      end
+      aspects[package_name] = { } unless aspects.has_key?(package_name)
+      aspects[package_name][server_id] = one_package['package_version']
+      aspect_scores[package_name] = { } unless aspect_scores.has_key?(package_name)
+      aspect_scores[package_name][server_id] = score
+
+      one_package['cve_entries'].each do |one_cve|
+        cve_name = package_name + "(#{one_cve['cve_entry']})"
+        aspects[cve_name] = { } unless aspects.has_key?(cve_name)
+        if one_cve['suppressed']
+          aspects[cve_name][server_id] = 'suppressed'
+        else
+          aspects[cve_name][server_id] = 'vulnerable'
+        end
+        aspect_scores[cve_name] = { } unless aspect_scores.has_key?(cve_name)
+        aspect_scores[cve_name][server_id] = score
+      end
+    end
+  end
 end
 
 
@@ -645,6 +698,17 @@ api_client_ids.each do |one_client_id|
         end
 
         server_ids_to_process.each do |one_id|
+          #Perhaps merge in load_servers functionality here later.
+          server_details_json = api_get("https://#{api_hosts[one_client_id]}/v1/servers/#{one_id}",timeout,open_timeout,token)
+          load_server_details(aspects,aspect_scores,server_details_json,one_id)
+          load_server_details(thiskey_aspects,thiskey_aspect_scores,server_details_json,one_id)
+          load_server_details(global_aspects,global_aspect_scores,server_details_json,one_id)
+
+          svm_json = api_get("https://#{api_hosts[one_client_id]}/v1/servers/#{one_id}/svm",timeout,open_timeout,token)
+          load_svm(aspects,aspect_scores,svm_json,one_id)
+          load_svm(thiskey_aspects,thiskey_aspect_scores,svm_json,one_id)
+          load_svm(global_aspects,global_aspect_scores,svm_json,one_id)
+
           issues_json = api_get("https://#{api_hosts[one_client_id]}/v1/servers/#{one_id}/issues",timeout,open_timeout,token)
           load_issues(aspects,aspect_scores,issues_json,one_id,status_scores)
           load_issues(thiskey_aspects,thiskey_aspect_scores,issues_json,one_id,status_scores)
