@@ -35,7 +35,7 @@
 # you may need to install the oauth2, rest-client, and json gems with:
 # sudo gem install oauth2 rest-client json
 
-#Version 3.6
+#Version 3.7
 
 #======== User-modifiable values
 api_key_file = '/etc/halo-api-keys'
@@ -62,25 +62,27 @@ $:.unshift File.dirname(__FILE__)
 #Pull out information from /servers/{oneid}/accounts.  This is the server OS
 #(windows, unless we find a root account) and the existence of non-system 
 #accounts.
-def load_accounts(aspects,aspect_scores,accounts_json,server_id,server_os)
+def load_accounts(aspects,aspect_scores,accounts_json,server_id,server_os,show_acct)
   $stderr.puts "loading accounts" if $debug
   #Assume OS is windows unless we find a valid root account
   server_os[server_id] = "windows"
   accounts_json['accounts'].each do |one_account|
     server_os[server_id] = "linux" if (one_account['username'] == "root") and (one_account['uid'].to_s == "0")
 
-    case one_account['shell']
-    when '/sbin/nologin','/sbin/shutdown','/bin/sync','/sbin/halt','/bin/false'
-    else
-      if one_account['uid'].to_i >= 100
-        case one_account['username']
-        when 'libuuid','nobody','sshd'
-        else
-          aspect_name = "Acct-#{one_account['username']}"
-          aspects[aspect_name] = { } unless aspects.has_key?(aspect_name)
-          aspects[aspect_name][server_id] = "exists"
-          aspect_scores[aspect_name] = { } unless aspect_scores.has_key?(aspect_name)
-          aspect_scores[aspect_name][server_id] = 0
+    if show_acct
+      case one_account['shell']
+      when '/sbin/nologin','/sbin/shutdown','/bin/sync','/sbin/halt','/bin/false'
+      else
+        if one_account['uid'].to_i >= 100
+          case one_account['username']
+          when 'libuuid','nobody','sshd'
+          else
+            aspect_name = "Acct-#{one_account['username']}"
+            aspects[aspect_name] = { } unless aspects.has_key?(aspect_name)
+            aspects[aspect_name][server_id] = "exists"
+            aspect_scores[aspect_name] = { } unless aspect_scores.has_key?(aspect_name)
+            aspect_scores[aspect_name][server_id] = 0
+          end
         end
       end
     end
@@ -126,7 +128,7 @@ end
 
 
 #Extract svm package names from /servers/{oneid}/svm
-def load_svm(aspects,aspect_scores,svm_json,server_id)
+def load_svm(aspects,aspect_scores,svm_json,server_id,show_cve,show_pkg)
   $stderr.puts "loading svm" if $debug
 
   #Load up package names and versions
@@ -140,21 +142,25 @@ def load_svm(aspects,aspect_scores,svm_json,server_id)
       else
         score = 2
       end
-      aspects[package_name] = { } unless aspects.has_key?(package_name)
-      aspects[package_name][server_id] = one_package['package_version']
-      aspect_scores[package_name] = { } unless aspect_scores.has_key?(package_name)
-      aspect_scores[package_name][server_id] = score
+      if show_pkg
+        aspects[package_name] = { } unless aspects.has_key?(package_name)
+        aspects[package_name][server_id] = one_package['package_version']
+        aspect_scores[package_name] = { } unless aspect_scores.has_key?(package_name)
+        aspect_scores[package_name][server_id] = score
+      end
 
-      one_package['cve_entries'].each do |one_cve|
-        cve_name = package_name + "(#{one_cve['cve_entry']})"
-        aspects[cve_name] = { } unless aspects.has_key?(cve_name)
-        if one_cve['suppressed']
-          aspects[cve_name][server_id] = 'suppressed'
-        else
-          aspects[cve_name][server_id] = 'vulnerable'
+      if show_cve
+        one_package['cve_entries'].each do |one_cve|
+          cve_name = package_name + "(#{one_cve['cve_entry']})"
+          aspects[cve_name] = { } unless aspects.has_key?(cve_name)
+          if one_cve['suppressed']
+            aspects[cve_name][server_id] = 'suppressed'
+          else
+            aspects[cve_name][server_id] = 'vulnerable'
+          end
+          aspect_scores[cve_name] = { } unless aspect_scores.has_key?(cve_name)
+          aspect_scores[cve_name][server_id] = score
         end
-        aspect_scores[cve_name] = { } unless aspect_scores.has_key?(cve_name)
-        aspect_scores[cve_name][server_id] = score
       end
     end
   end
@@ -163,7 +169,7 @@ end
 
 #Extract server state, svm package names, svm cve vulnerabilities, sca
 #rules, and sca checks from /servers/{oneid}/issues
-def load_issues(aspects,aspect_scores,issues_json,server_id,status_scores)
+def load_issues(aspects,aspect_scores,issues_json,server_id,status_scores,show_cve,show_pkg,show_rules,show_checks)
   $stderr.puts "loading issues" if $debug
   #Load "state", which will always be active, to get a server list
   aspects['State'] = { } unless aspects.has_key?('State')
@@ -187,21 +193,25 @@ def load_issues(aspects,aspect_scores,issues_json,server_id,status_scores)
       else
         score = 2
       end
-      aspects[package_name] = { } unless aspects.has_key?(package_name)
-      aspects[package_name][server_id] = one_package['package_version']
-      aspect_scores[package_name] = { } unless aspect_scores.has_key?(package_name)
-      aspect_scores[package_name][server_id] = score
+      if show_pkg
+        aspects[package_name] = { } unless aspects.has_key?(package_name)
+        aspects[package_name][server_id] = one_package['package_version']
+        aspect_scores[package_name] = { } unless aspect_scores.has_key?(package_name)
+        aspect_scores[package_name][server_id] = score
+      end
 
-      one_package['cve_entries'].each do |one_cve|
-        cve_name = package_name + "(#{one_cve['cve_entry']})"
-        aspects[cve_name] = { } unless aspects.has_key?(cve_name)
-        if one_cve['suppressed']
-          aspects[cve_name][server_id] = 'suppressed'
-        else
-          aspects[cve_name][server_id] = 'vulnerable'
+      if show_cve
+        one_package['cve_entries'].each do |one_cve|
+          cve_name = package_name + "(#{one_cve['cve_entry']})"
+          aspects[cve_name] = { } unless aspects.has_key?(cve_name)
+          if one_cve['suppressed']
+            aspects[cve_name][server_id] = 'suppressed'
+          else
+            aspects[cve_name][server_id] = 'vulnerable'
+          end
+          aspect_scores[cve_name] = { } unless aspect_scores.has_key?(cve_name)
+          aspect_scores[cve_name][server_id] = score
         end
-        aspect_scores[cve_name] = { } unless aspect_scores.has_key?(cve_name)
-        aspect_scores[cve_name][server_id] = score
       end
     end
   end
@@ -217,119 +227,123 @@ def load_issues(aspects,aspect_scores,issues_json,server_id,status_scores)
       #Remove any html in the rule name
       rule_name = "Cfg rule-#{one_rule['rule_name'].to_s.gsub(/<[^>]*>/,"")}"
 
-      #Load up the rules first
-      aspects[rule_name] = { } unless aspects.has_key?(rule_name)
-      aspects[rule_name][server_id] = one_rule['status']
-      aspect_scores[rule_name] = { } unless aspect_scores.has_key?(rule_name)
-      aspect_scores[rule_name][server_id] = status_scores["#{one_rule['status']}/#{one_rule['critical']}"]
+      if show_rules
+        #Load up the rules first
+        aspects[rule_name] = { } unless aspects.has_key?(rule_name)
+        aspects[rule_name][server_id] = one_rule['status']
+        aspect_scores[rule_name] = { } unless aspect_scores.has_key?(rule_name)
+        aspect_scores[rule_name][server_id] = status_scores["#{one_rule['status']}/#{one_rule['critical']}"]
+      end
 
-      #And now load up their component checks
-      one_rule['details'].each do |one_check|
-        if one_check['status'] == 'indeterminate'
-          check_value = 'indeterminate'
-        else
-          check_value = one_check['actual'].to_s.gsub(/<[^>]*>/,"")
-        end
-        check_name = ""
-        case one_check['type']
-        when 'configuration'
-          check_name = rule_name + " (check-#{one_check['target']} has #{one_check['config_key']} #{one_check['config_key_value_delimiter']} #{one_check['expected']})"
-        when 'dir_acl', 'file_acl'
-          check_name = rule_name + " (check-#{one_check['target']} ACL is #{one_check['expected']})"
-        when 'dir_owner_gid', 'file_owner_gid'
-          check_name = rule_name + " (check-#{one_check['target']} owned by group #{one_check['expected']})"
-        when 'dir_owner_uid', 'file_owner_uid'
-          check_name = rule_name + " (check-#{one_check['target']} owned by #{one_check['expected']})"
-        when 'dir_sticky_bit',
-          check_name = rule_name + " (world writeable directory without sticky bit: #{one_check['expected']})"
-        when 'file_presence'
-          check_name = rule_name + " (check-#{one_check['target']} exists: #{one_check['expected']})"
-        when 'file_regex'	#Does not list the regex
+      if show_checks
+        #And now load up their component checks
+        one_rule['details'].each do |one_check|
+          if one_check['status'] == 'indeterminate'
+            check_value = 'indeterminate'
+          else
+            check_value = one_check['actual'].to_s.gsub(/<[^>]*>/,"")
+          end
+          check_name = ""
+          case one_check['type']
+          when 'configuration'
+            check_name = rule_name + " (check-#{one_check['target']} has #{one_check['config_key']} #{one_check['config_key_value_delimiter']} #{one_check['expected']})"
+          when 'dir_acl', 'file_acl'
+            check_name = rule_name + " (check-#{one_check['target']} ACL is #{one_check['expected']})"
+          when 'dir_owner_gid', 'file_owner_gid'
+            check_name = rule_name + " (check-#{one_check['target']} owned by group #{one_check['expected']})"
+          when 'dir_owner_uid', 'file_owner_uid'
+            check_name = rule_name + " (check-#{one_check['target']} owned by #{one_check['expected']})"
+          when 'dir_sticky_bit',
+            check_name = rule_name + " (world writeable directory without sticky bit: #{one_check['expected']})"
+          when 'file_presence'
+            check_name = rule_name + " (check-#{one_check['target']} exists: #{one_check['expected']})"
+          when 'file_regex'	#Does not list the regex
 #{"actual"=>false, "target"=>"/etc/pam.d/system-auth-ac",
 #"status"=>"bad", "expected"=>true, "scan_status"=>"ok",
 #"type"=>"file_regex"}
-          check_name = rule_name + " (check-#{one_check['target']} has a regex: #{one_check['expected']})"
-        when 'file_set_gid'
-          check_name = rule_name + " (check-#{one_check['target']} setgid: #{one_check['expected']})"
-        when 'file_set_uid'
-          check_name = rule_name + " (check-#{one_check['target']} setuid: #{one_check['expected']})"
-        when 'group_gid_is'
-          check_name = rule_name + " (check-#{one_check['target']} has gid #{one_check['expected']})"
-        when 'group_has_password'
-          check_name = rule_name + " (check-#{one_check['target']} has password: #{one_check['expected']})"
-        when 'group_has_users'
-          check_name = rule_name + " (check-#{one_check['target']} has users: #{one_check['expected']})"
-        when 'password_is_username'
-          check_name = rule_name + " (check-#{one_check['target']} has password = username: #{one_check['expected']})"
-        when 'port_white'	#Network service accessibility, does not list interface name as a field
+            check_name = rule_name + " (check-#{one_check['target']} has a regex: #{one_check['expected']})"
+          when 'file_set_gid'
+            check_name = rule_name + " (check-#{one_check['target']} setgid: #{one_check['expected']})"
+          when 'file_set_uid'
+            check_name = rule_name + " (check-#{one_check['target']} setuid: #{one_check['expected']})"
+          when 'group_gid_is'
+            check_name = rule_name + " (check-#{one_check['target']} has gid #{one_check['expected']})"
+          when 'group_has_password'
+            check_name = rule_name + " (check-#{one_check['target']} has password: #{one_check['expected']})"
+          when 'group_has_users'
+            check_name = rule_name + " (check-#{one_check['target']} has users: #{one_check['expected']})"
+          when 'password_is_username'
+            check_name = rule_name + " (check-#{one_check['target']} has password = username: #{one_check['expected']})"
+          when 'port_white'	#Network service accessibility, does not list interface name as a field
 #{"scan_status"=>"ok", "bound_process"=>"sshd", "target"=>"*",
 #"actual"=>"22/TCP", "status"=>"bad", "type"=>"port_white",
 #"port_scan_status"=>"open", "expected"=>"99/TCP"}
-          check_name = rule_name + " (check-only open ports: #{one_check['expected']})"
-        when 'port_process'	#Network service processes, does not list interface or port
+            check_name = rule_name + " (check-only open ports: #{one_check['expected']})"
+          when 'port_process'	#Network service processes, does not list interface or port
 #{"expected"=>"bash", "scan_status"=>"ok", "type"=>"port_process",
 #"actual"=>"sshd", "target"=>"*", "status"=>"bad"}
-          check_name = rule_name + " (check-Port N should only have listener #{one_check['expected']})"
-        when 'process_effective_gid'
-          check_name = rule_name + " (check-#{one_check['target']} running as group #{one_check['expected']})"
-        when 'process_effective_uid'
-          check_name = rule_name + " (check-#{one_check['target']} running as #{one_check['expected']})"
-        when 'process_presence'
-          check_name = rule_name + " (check-#{one_check['target']} should be running: #{one_check['expected']})"
-        when 'user_file_presence'
-          check_name = rule_name + " (check-#{one_check['target']} home directory #{one_check['home_directory']} contains #{one_check['patterns']}: #{one_check['expected']})"
-        when 'user_has_groups'
-          check_name = rule_name + " (check-#{one_check['target']} is a member of only #{one_check['expected']})"
-        when 'user_has_logged_in'
-          check_name = rule_name + " (check-#{one_check['target']} has logged in: #{one_check['expected']})"
-        when 'user_has_not_logged_in'
-          check_name = rule_name + " (check-#{one_check['target']} has not logged in: #{one_check['expected']})"
-        when 'user_has_password'
-          check_name = rule_name + " (check-#{one_check['target']} has a password: #{one_check['expected']})"
-        when 'user_home_presence'
-          check_name = rule_name + " (check-#{one_check['target']} has a home directory #{one_check['home_directory']}: #{one_check['expected']})"
-        when 'user_home_file_group_ownership'		#This has an array with the file names we could later harvest
-          check_name = rule_name + " (check-#{one_check['target']} home directory #{one_check['home_directory']} has files group owned by another user: #{one_check['expected']})"
-        when 'user_home_file_ownership'			#This has an array with the file names we could later harvest
-          check_name = rule_name + " (check-#{one_check['target']} home directory #{one_check['home_directory']} has files owned by another user: #{one_check['expected']})"
-        when 'user_home_files_umask'			#This has an array with the file names we could later harvest
-          check_name = rule_name + " (check-#{one_check['target']} home directory #{one_check['home_directory']} sets insecure umask: #{one_check['expected']})"
-        when 'user_home_files_detect_path_statements'	#This has an array with the file names we could later harvest
-          check_name = rule_name + " (check-#{one_check['target']} has no unsafe PATH statements in #{one_check['home_directory']}: #{one_check['expected']})"
-        when 'user_home_group_ownership'
-          check_name = rule_name + " (check-#{one_check['target']} home directory #{one_check['home_directory']} owned by gid: #{one_check['expected']})"
-        when 'user_home_ownership'
-          check_name = rule_name + " (check-#{one_check['target']} home directory #{one_check['home_directory']} owned by uid: #{one_check['expected']})"
-        when 'user_home_device_files'			#This has an array with the file names we could later harvest
-          check_name = rule_name + " (check-#{one_check['target']} home directory #{one_check['home_directory']} has character or block devices: #{one_check['expected']})"
-        when 'user_home_setgid_files'			#This has an array with the file names we could later harvest
-          check_name = rule_name + " (check-#{one_check['target']} home directory #{one_check['home_directory']} has setgid files: #{one_check['expected']})"
-        when 'user_home_setuid_files'			#This has an array with the file names we could later harvest
-          check_name = rule_name + " (check-#{one_check['target']} home directory #{one_check['home_directory']} has setuid files: #{one_check['expected']})"
-        when 'user_uid_is'
-          check_name = rule_name + " (check-#{one_check['target']} has uid #{one_check['expected']})"
-        when 'windows_file_presence'
+            check_name = rule_name + " (check-Port N should only have listener #{one_check['expected']})"
+          when 'process_effective_gid'
+            check_name = rule_name + " (check-#{one_check['target']} running as group #{one_check['expected']})"
+          when 'process_effective_uid'
+            check_name = rule_name + " (check-#{one_check['target']} running as #{one_check['expected']})"
+          when 'process_presence'
+            check_name = rule_name + " (check-#{one_check['target']} should be running: #{one_check['expected']})"
+          when 'user_file_presence'
+            check_name = rule_name + " (check-#{one_check['target']} home directory #{one_check['home_directory']} contains #{one_check['patterns']}: #{one_check['expected']})"
+          when 'user_has_groups'
+            check_name = rule_name + " (check-#{one_check['target']} is a member of only #{one_check['expected']})"
+          when 'user_has_logged_in'
+            check_name = rule_name + " (check-#{one_check['target']} has logged in: #{one_check['expected']})"
+          when 'user_has_not_logged_in'
+            check_name = rule_name + " (check-#{one_check['target']} has not logged in: #{one_check['expected']})"
+          when 'user_has_password'
+            check_name = rule_name + " (check-#{one_check['target']} has a password: #{one_check['expected']})"
+          when 'user_home_presence'
+            check_name = rule_name + " (check-#{one_check['target']} has a home directory #{one_check['home_directory']}: #{one_check['expected']})"
+          when 'user_home_file_group_ownership'		#This has an array with the file names we could later harvest
+            check_name = rule_name + " (check-#{one_check['target']} home directory #{one_check['home_directory']} has files group owned by another user: #{one_check['expected']})"
+          when 'user_home_file_ownership'			#This has an array with the file names we could later harvest
+            check_name = rule_name + " (check-#{one_check['target']} home directory #{one_check['home_directory']} has files owned by another user: #{one_check['expected']})"
+          when 'user_home_files_umask'			#This has an array with the file names we could later harvest
+            check_name = rule_name + " (check-#{one_check['target']} home directory #{one_check['home_directory']} sets insecure umask: #{one_check['expected']})"
+          when 'user_home_files_detect_path_statements'	#This has an array with the file names we could later harvest
+            check_name = rule_name + " (check-#{one_check['target']} has no unsafe PATH statements in #{one_check['home_directory']}: #{one_check['expected']})"
+          when 'user_home_group_ownership'
+            check_name = rule_name + " (check-#{one_check['target']} home directory #{one_check['home_directory']} owned by gid: #{one_check['expected']})"
+          when 'user_home_ownership'
+            check_name = rule_name + " (check-#{one_check['target']} home directory #{one_check['home_directory']} owned by uid: #{one_check['expected']})"
+          when 'user_home_device_files'			#This has an array with the file names we could later harvest
+            check_name = rule_name + " (check-#{one_check['target']} home directory #{one_check['home_directory']} has character or block devices: #{one_check['expected']})"
+          when 'user_home_setgid_files'			#This has an array with the file names we could later harvest
+            check_name = rule_name + " (check-#{one_check['target']} home directory #{one_check['home_directory']} has setgid files: #{one_check['expected']})"
+          when 'user_home_setuid_files'			#This has an array with the file names we could later harvest
+            check_name = rule_name + " (check-#{one_check['target']} home directory #{one_check['home_directory']} has setuid files: #{one_check['expected']})"
+          when 'user_uid_is'
+            check_name = rule_name + " (check-#{one_check['target']} has uid #{one_check['expected']})"
+          when 'windows_file_presence'
 #{"expected"=>true, "target"=>"C:\\note1-junk.txt", "actual"=>false, "status"=>"bad", "type"=>"windows_file_presence", "scan_status"=>"not_found"}
-          check_name = rule_name + " (check-#{one_check['target']} = #{one_check['expected']})"
-        when 'windows_local_security_policy'
+            check_name = rule_name + " (check-#{one_check['target']} = #{one_check['expected']})"
+          when 'windows_local_security_policy'
 #{"scan_status"=>"ok", "status"=>"bad", "type"=>"windows_local_security_policy", "target"=>"secedit", "actual"=>"0", "expected"=>"1"}
-          check_name = rule_name + " (check-win_local_sec_pol, #{one_check['target']} exists: #{one_check['expected']})"
-        else
-          $stderr.puts "No check_name defined for #{one_check['type']}."
-          $stderr.puts one_check.inspect
-        end
+            check_name = rule_name + " (check-win_local_sec_pol, #{one_check['target']} exists: #{one_check['expected']})"
+          else
+            $stderr.puts "No check_name defined for #{one_check['type']}."
+            $stderr.puts one_check.inspect
+          end
 
-        check_name = check_name.to_s.gsub(/<[^>]*>/,"")
+          check_name = check_name.to_s.gsub(/<[^>]*>/,"")
 
-        case one_check['type']
-        when 'configuration', 'dir_acl', 'dir_owner_gid', 'dir_owner_uid', 'dir_sticky_bit', 'file_acl', 'file_owner_gid', 'file_owner_uid', 'file_presence', 'file_regex', 'file_set_gid', 'file_set_uid', 'group_gid_is', 'group_has_password', 'group_has_users', 'password_is_username', 'port_process', 'port_white', 'process_effective_gid', 'process_effective_uid', 'process_presence', 'user_file_presence', 'user_has_groups', 'user_has_logged_in', 'user_has_not_logged_in', 'user_has_password', 'user_home_file_group_ownership', 'user_home_file_ownership', 'user_home_group_ownership', 'user_home_ownership', 'user_home_presence', 'user_home_device_files', 'user_home_files_detect_path_statements', 'user_home_files_umask', 'user_home_setgid_files', 'user_home_setuid_files', 'user_uid_is', 'windows_file_presence', 'windows_local_security_policy'
-          aspects[check_name] = { } unless aspects.has_key?(check_name)
-          aspects[check_name][server_id] = check_value
-          aspect_scores[check_name] = { } unless aspect_scores.has_key?(check_name)
-          aspect_scores[check_name][server_id] = status_scores["#{one_check['status']}/#{one_rule['critical']}"]
-        else
-          $stderr.puts "No check storage requested for #{one_check['type']}."
-          $stderr.puts one_check.inspect
+          case one_check['type']
+          when 'configuration', 'dir_acl', 'dir_owner_gid', 'dir_owner_uid', 'dir_sticky_bit', 'file_acl', 'file_owner_gid', 'file_owner_uid', 'file_presence', 'file_regex', 'file_set_gid', 'file_set_uid', 'group_gid_is', 'group_has_password', 'group_has_users', 'password_is_username', 'port_process', 'port_white', 'process_effective_gid', 'process_effective_uid', 'process_presence', 'user_file_presence', 'user_has_groups', 'user_has_logged_in', 'user_has_not_logged_in', 'user_has_password', 'user_home_file_group_ownership', 'user_home_file_ownership', 'user_home_group_ownership', 'user_home_ownership', 'user_home_presence', 'user_home_device_files', 'user_home_files_detect_path_statements', 'user_home_files_umask', 'user_home_setgid_files', 'user_home_setuid_files', 'user_uid_is', 'windows_file_presence', 'windows_local_security_policy'
+            aspects[check_name] = { } unless aspects.has_key?(check_name)
+            aspects[check_name][server_id] = check_value
+            aspect_scores[check_name] = { } unless aspect_scores.has_key?(check_name)
+            aspect_scores[check_name][server_id] = status_scores["#{one_check['status']}/#{one_rule['critical']}"]
+          else
+            $stderr.puts "No check storage requested for #{one_check['type']}."
+            $stderr.puts one_check.inspect
+          end
         end
       end
     end
@@ -585,6 +599,11 @@ table_names = {
   0 => "Servers agree, severity good"
 }
 default_key = ""
+show_acct = true			#These allow the user to turn off parts of the report
+show_checks = true
+show_cve = true
+show_pkg = true
+show_rules = true
 #======== End of initialization
 
 
@@ -598,6 +617,31 @@ optparse = OptionParser.new do |opts|
 
   opts.on("--report_dir report_dir", "Report directory, to which the html reports will be written.  Must exist.  Any reports in this directory will be overwritten.  Defaults to current directory.") do |input_dir|
     report_dir = input_dir.to_s + "/"
+  end
+
+  opts.on("--no-acct", "--no-accounts", "Do not show server accounts") do
+    show_acct = false
+  end
+
+  opts.on("--no-cfg", "Do not show configuration rules or checks") do
+    show_checks = false
+    show_rules = false
+  end
+
+  opts.on("--no-checks", "Do not show configuration checks") do
+    show_checks = false
+  end
+
+  opts.on("--no-cve", "Do not show CVE vulnerabilities") do
+    show_cve = false
+  end
+
+  opts.on("--no-pkg", "--no-packages", "Do not show packages") do
+    show_pkg = false
+  end
+
+  opts.on("--no-rules", "Do not show configuration rules") do
+    show_rules = false
   end
 
   opts.on_tail("-h", "--help", "Show help text") do
@@ -704,20 +748,24 @@ api_client_ids.each do |one_client_id|
           load_server_details(thiskey_aspects,thiskey_aspect_scores,server_details_json,one_id)
           load_server_details(global_aspects,global_aspect_scores,server_details_json,one_id)
 
-          svm_json = api_get("https://#{api_hosts[one_client_id]}/v1/servers/#{one_id}/svm",timeout,open_timeout,token)
-          load_svm(aspects,aspect_scores,svm_json,one_id)
-          load_svm(thiskey_aspects,thiskey_aspect_scores,svm_json,one_id)
-          load_svm(global_aspects,global_aspect_scores,svm_json,one_id)
+          if (show_cve or show_pkg)
+            svm_json = api_get("https://#{api_hosts[one_client_id]}/v1/servers/#{one_id}/svm",timeout,open_timeout,token)
+            load_svm(aspects,aspect_scores,svm_json,one_id,show_cve,show_pkg)
+            load_svm(thiskey_aspects,thiskey_aspect_scores,svm_json,one_id,show_cve,show_pkg)
+            load_svm(global_aspects,global_aspect_scores,svm_json,one_id,show_cve,show_pkg)
+          end
 
+          #FIXME put in "if" once all show_'s created.
           issues_json = api_get("https://#{api_hosts[one_client_id]}/v1/servers/#{one_id}/issues",timeout,open_timeout,token)
-          load_issues(aspects,aspect_scores,issues_json,one_id,status_scores)
-          load_issues(thiskey_aspects,thiskey_aspect_scores,issues_json,one_id,status_scores)
-          load_issues(global_aspects,global_aspect_scores,issues_json,one_id,status_scores)
+          load_issues(aspects,aspect_scores,issues_json,one_id,status_scores,show_cve,show_pkg,show_rules,show_checks)
+          load_issues(thiskey_aspects,thiskey_aspect_scores,issues_json,one_id,status_scores,show_cve,show_pkg,show_rules,show_checks)
+          load_issues(global_aspects,global_aspect_scores,issues_json,one_id,status_scores,show_cve,show_pkg,show_rules,show_checks)
 
+          #We can't place this inside "if show_acct" as we're using the user account info to determine OS at the moment
           accounts_json = api_get("https://#{api_hosts[one_client_id]}/v1/servers/#{one_id}/accounts",timeout,open_timeout,token)
-          load_accounts(aspects,aspect_scores,accounts_json,one_id,server_os)
-          load_accounts(thiskey_aspects,thiskey_aspect_scores,accounts_json,one_id,server_os)
-          load_accounts(global_aspects,global_aspect_scores,accounts_json,one_id,server_os)
+          load_accounts(aspects,aspect_scores,accounts_json,one_id,server_os,show_acct)
+          load_accounts(thiskey_aspects,thiskey_aspect_scores,accounts_json,one_id,server_os,show_acct)
+          load_accounts(global_aspects,global_aspect_scores,accounts_json,one_id,server_os,show_acct)
         end
 
         #This creates the report for just this server group
