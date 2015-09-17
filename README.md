@@ -65,3 +65,6 @@ If you manage more than one Halo Portal organization, you can generate a report 
 one-of-these-things.rb -i aabbcc00 -i 7890abcd
 ```
 
+<!---
+#CPTAGS:community-supported audit
+-->
