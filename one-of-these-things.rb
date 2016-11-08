@@ -56,11 +56,11 @@ $:.unshift File.dirname(__FILE__)
 
 #======== Functions
 #The following load_* functions extract information from api results and store
-#that in aspects and aspect_scores hashes, which are passed back modified as 
+#that in aspects and aspect_scores hashes, which are passed back modified as
 #parameters.
 
 #Pull out information from /servers/{oneid}/accounts.  This is the server OS
-#(windows, unless we find a root account) and the existence of non-system 
+#(windows, unless we find a root account) and the existence of non-system
 #accounts.
 def load_accounts(aspects,aspect_scores,accounts_json,server_id,server_os,show_acct)
   $stderr.puts "loading accounts" if $debug
@@ -484,7 +484,7 @@ def summarize_one_aspect(one_aspect,one_aspect_scores,aspect_name,server_hostnam
   #Since the first column holds the server aspect, we initialize the array with that in [0]
   table_cell_array = [ aspect_name ]
 
-  #The one_aspect hash holds { host_id => value } pairs.  We pull these out and store them in 
+  #The one_aspect hash holds { host_id => value } pairs.  We pull these out and store them in
   #value_owners, which holds { value => [ list of host_ids ] } pairs.
   one_aspect.each_key do |one_host_id|
     one_value = one_aspect[one_host_id]
@@ -511,7 +511,7 @@ def summarize_one_aspect(one_aspect,one_aspect_scores,aspect_name,server_hostnam
 
   end
 
-  #The usual score range is 0 (good) to 3 (bad + critical).  We raise that by 4 (4-7) if 
+  #The usual score range is 0 (good) to 3 (bad + critical).  We raise that by 4 (4-7) if
   #there's any disagreement, which is the case if any value cell has <server_count servers.
   disagree_nudge = 0
   value_owners.each_key do |one_value|
@@ -519,7 +519,7 @@ def summarize_one_aspect(one_aspect,one_aspect_scores,aspect_name,server_hostnam
   end
   line_score += disagree_nudge
 
-  #For each value we found, build a table cell with the number of servers with that value and 
+  #For each value we found, build a table cell with the number of servers with that value and
   #"all", or a list of those server names if < all servers.
   value_owners.each_key do |one_value|
     cell_content = "#{one_value}:"
@@ -562,7 +562,7 @@ require 'optparse'
 require 'oauth2'
 require 'rest-client'
 require 'json'
-load 'wlslib.rb'
+require 'wlslib'
 #======== End of loadable modules
 
 
@@ -804,5 +804,3 @@ end
 $stderr.puts $all_warnings.values
 
 exit 0
-
-
