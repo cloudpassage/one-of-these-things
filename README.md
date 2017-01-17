@@ -12,7 +12,6 @@ This tool provides one report per Halo group showing where the machines are the 
 * Summarizes:
     * Installed packages which may need attention
     * CVE items that may affect your system
-    * Server accounts
     * Hosting company
     * All SCA (Configuration) checks with issues
 * Each of the above is summarized, so you get a count of how many machines have the same status; click on the number and you're given their hostnames as well.
